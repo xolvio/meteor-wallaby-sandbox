@@ -1,6 +1,7 @@
 module.exports = function (wallaby) {
   var fs = require('fs');
   var path = require('path');
+  process.env.NODE_PATH = process.env.NODE_PATH || '';
   process.env.NODE_PATH +=
     ':' + path.join(wallaby.localProjectDir, 'tests', 'wallaby', 'node_modules') +
     ':' + path.join(wallaby.localProjectDir, '.meteor', 'local', 'build', 'programs', 'server', 'node_modules');
@@ -25,6 +26,13 @@ module.exports = function (wallaby) {
       'tests/wallaby/**/*Spec.js'
     ],
 
+    // TODO: Support parallelism (Maybe we need random ports)
+    workers: {
+      initial: 1,
+      regular: 1,
+      recycle: true
+    },
+
     env: {
       // use 'node' type to use node.js or io.js
       type: 'node',
@@ -44,37 +52,51 @@ module.exports = function (wallaby) {
       var path = require('path');
       var Fiber = require('fibers');
       Fiber(function () {
-        require(path.join(wallaby.projectCacheDir, '.meteor', 'local', 'build', 'main.js'));
+        process.argv.splice(2, 0, 'program.json');
+        process.chdir(path.join(wallaby.projectCacheDir, '.meteor', 'local', 'build', 'programs', 'server'));
+        require(path.join(wallaby.projectCacheDir, '.meteor', 'local', 'build', 'programs', 'server', 'boot.js'));
 
         var expect = require('expect');
         global.expect = expect;
         global.spyOn = expect.spyOn.bind(expect);
 
-        // Bind to Fiber
+        // Bind spec to Fiber
         var generateBoundFunction = function (func) {
-          var boundFunction = Meteor.bindEnvironment(func);
-          if (func.length > 0) {
-            // Async test
-            return function (done) {
-              return boundFunction.apply(this, arguments);
-            };
-          } else {
-            // Sync test
-            return function () {
-              return boundFunction.call(this);
-            };
-          }
+          return function (done) {
+            var context = this;
+            Fiber(function () {
+              var isAsyncSpec = func.length > 0;
+              if (isAsyncSpec) {
+                func.call(context, done);
+              } else {
+                func.call(context)
+                if (typeof done === 'function') {
+                  done();
+                }
+              }
+            }).run();
+          };
         };
 
-        ['describe', 'it'].forEach(function (word) {
-          var originalFunction = global[word];
-          global[word] = function (/* arguments */) {
-            arguments[1] = generateBoundFunction(arguments[1]);
-            return originalFunction.apply(this, arguments);
-          }
-        });
+        // Mocha interface that executes tests in Fiber
+        var fiberBDDUi = function (suite) {
+          require(path.join(__dirname, 'mocha@2.1.0', 'framework', 'lib', 'interfaces', 'bdd'))(suite);
 
-        // FIXME: Run tests in the Meteor Fiber created in boot.js
+          suite.on('pre-require', function (context, file, mocha) {
+            ['describe', 'it'].forEach(function (word) {
+              var originalFunction = context[word];
+              context[word] = function (/* arguments */) {
+                arguments[1] = generateBoundFunction(arguments[1]);
+                return originalFunction.apply(this, arguments);
+              }
+            });
+          });
+        }
+
+        var mocha = wallaby.testFramework;
+        require(path.join(__dirname, 'mocha@2.1.0', 'framework')).interfaces['fiber-bdd'] = fiberBDDUi;
+        mocha.ui('fiber-bdd');
+
         wallaby.start();
       }).run();
     }

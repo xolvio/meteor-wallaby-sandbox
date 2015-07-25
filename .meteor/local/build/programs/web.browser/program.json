@@ -409,9 +409,9 @@
       "where": "client",
       "type": "js",
       "cacheable": true,
-      "url": "/meteor-wallaby-sandbox.js?c2e184d448010d8345127ffbaf10ce04b6d355e3",
-      "size": 497,
-      "hash": "c2e184d448010d8345127ffbaf10ce04b6d355e3"
+      "url": "/meteor-wallaby-sandbox.js?6b252af11284353faa53843fb151fd20d89f51e8",
+      "size": 573,
+      "hash": "6b252af11284353faa53843fb151fd20d89f51e8"
     },
     {
       "path": "20ae2c8d51b2507244e598844414ecdec2615ce3.css",
