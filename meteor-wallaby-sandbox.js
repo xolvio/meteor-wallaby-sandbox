@@ -1,3 +1,11 @@
+Articles = new Mongo.Collection('articles');
+
+ArticlesService = {
+  getArticles: function () {
+    return Articles.find().fetch()
+  }
+}
+
 if (Meteor.isClient) {
   // counter starts at 0
   Session.setDefault('counter', 0);
@@ -18,12 +26,17 @@ if (Meteor.isClient) {
 
 if (Meteor.isServer) {
   Meteor.startup(function () {
-    // code to run on server at startup
+    if (Articles.find().count() === 0) {
+      Articles.insert({
+        title: 'My first article',
+        content: 'This is my first article.'
+      });
+    }
   });
 
   Meteor.methods({
-    'foo': function () {
-      return 'foo';
+    'getArticles': function () {
+      return ArticlesService.getArticles();
     }
   })
 }

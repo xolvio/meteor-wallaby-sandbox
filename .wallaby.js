@@ -12,6 +12,8 @@ module.exports = function (wallaby) {
   });
 
   return {
+    debug: true,
+
     files: [
       '.meteor/local/build/programs/server/*',
       '.meteor/local/build/programs/server/app/**/*',
@@ -23,7 +25,8 @@ module.exports = function (wallaby) {
     ],
 
     tests: [
-      'tests/wallaby/**/*Spec.js'
+      'tests/wallaby/**/*Spec.js',
+      '!tests/wallaby/client/**/*Spec.js'
     ],
 
     // TODO: Support parallelism (Maybe we need random ports)
